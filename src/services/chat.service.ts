@@ -1,8 +1,35 @@
 import { StatusCodes } from 'http-status-codes';
+import zod from 'zod';
+import { prettyFormatFromApi, prettyFormatNow } from '../utils/date';
+
 export type Message = {
   role: 'assistant' | 'user' | 'system';
   content: string;
   id: number;
+  createdAt: string
+}
+
+const apiMessageScheme = zod.object({
+  role: zod.enum(['assistant', 'user', 'system']),
+  content: zod.string(),
+  id: zod.number(),
+  created_at: zod.string()
+});
+
+type ApiMessageType = zod.infer<typeof apiMessageScheme>;
+
+
+/**
+ * @throws { ZodError } si le format du message est invalide 
+ */
+function fromApiMessageToLocalMessage(apiMessage: ApiMessageType): Message {
+  apiMessageScheme.parse(apiMessage);
+  return {
+    role: apiMessage.role,
+    content: apiMessage.content,
+    id: apiMessage.id,
+    createdAt: prettyFormatFromApi(apiMessage.created_at)
+  };
 }
 
 
@@ -16,7 +43,10 @@ export async function getMessages(conversationId: number): Promise<Array<Message
       return [];
     }
 
-    return await httpResponse.json();
+    console.log('getMessages')
+    const messages = await httpResponse.json();
+    console.log(messages);
+    return messages.map(fromApiMessageToLocalMessage);
 
   } catch (error) {
     return [];
@@ -44,7 +74,12 @@ export async function getResponse(question: string, conversationId: number): Pro
     }
 
     const body = await httpResponse.json();
-    return body?.choices?.[0]?.message;
+    return {
+      id: 0,
+      role: 'assistant',
+      content: body?.choices?.[0]?.message.content,
+      createdAt: prettyFormatNow()
+    };
 
   } catch (error) {
     return;
