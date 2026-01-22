@@ -1,0 +1,40 @@
+:root {
+  --gap: 0.5rem;
+  --background-color: hsl(225, 35%, 8%);
+  --dark-background-color: hsl(225, 50%, 7%);
+  --background-gradient: linear-gradient(0deg, hsl(225, 30%, 8%), hsl(225, 40%, 10%));
+  --border-color: hsl(225, 35%, 15%);
+  --pane-radius: 12px;
+  
+  --glow-color: hsla(264, 58%, 28%, 36%);
+  --glow-color-focus: hsla(264, 58%, 28%, 38%);
+
+  --input-radius: 9px;
+  --input-text-color: white;
+  --input-background-color: hsl(225, 35%, 10%);
+  --input-background-color-focus: hsl(225, 35%, 12%);
+
+  --user-bubble-background-color: hsl(225, 50%, 50%);
+  --user-bubble-border-color: hsl(225, 70%, 60%);
+
+  --assistant-bubble-background-color: hsl(225, 16%, 15%);
+  --assitant-bubble-border-color: hsl(225, 16%, 23%);
+
+  --text-color: white;
+  --dark-text-color: hsl(225, 30%, 70%);
+
+  --highlight-color: hsl(180, 100%, 50%);
+}
+
+body {
+  font-family: sans-serif;
+  margin: 0;
+  background-color: var(--background-color);
+}
+
+#app{
+  width: calc(100% - 2 * var(--gap));
+  height: calc(100dvh - 2 * var(--gap));
+  padding: var(--gap);
+}
+
