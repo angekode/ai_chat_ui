@@ -24,6 +24,7 @@ type ApiMessageType = zod.infer<typeof apiMessageScheme>;
  */
 function fromApiMessageToLocalMessage(apiMessage: ApiMessageType): Message {
   apiMessageScheme.parse(apiMessage);
+  console.log('messageId: ' + apiMessage.id);
   return {
     role: apiMessage.role,
     content: apiMessage.content,
@@ -74,8 +75,9 @@ export async function getResponse(question: string, conversationId: number): Pro
     }
 
     const body = await httpResponse.json();
+    console.log('responseId: ' + body?.id);
     return {
-      id: 0,
+      id: body?.id,
       role: 'assistant',
       content: body?.choices?.[0]?.message.content,
       createdAt: prettyFormatNow()
