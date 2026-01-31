@@ -1,8 +1,10 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, tick } from 'svelte';
   import { getMessages, type Message, getResponse } from '../services/chat.service';
   import { prettyFormatNow } from '../utils/date';
   import MessageBubble from './MessageBubble.svelte';
+  import { scrollToBottom } from '../services/scrolling';
+
 
   let messages : Message[] = $state([]);
   let userInput : string = $state('');
@@ -17,12 +19,23 @@
     // visible mais il faudrait rajouter un message d'erreur.
     const questionMessage : Message = { id: -1, role: 'user', content: userInput, createdAt: prettyFormatNow() };
     messages.push(questionMessage);
+
+    const messageHistoryElement = document.getElementById('messages-pane');
+    if (!messageHistoryElement) {
+      throw new Error('L\'élément #messages-pane n\'existe pas');
+    }
+    await tick();
+    scrollToBottom(messageHistoryElement);
+
     const result = await getResponse(userInput, 1);
     if (result.type === 'result') {
       questionMessage.id = result.questionId; // mise à jour de l'id qui était à -1
       messages.push(result.response);
       userInput = '';
     }
+    
+    await tick();
+    scrollToBottom(messageHistoryElement);
   }
 
   onMount(async () => {
