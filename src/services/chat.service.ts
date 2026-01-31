@@ -54,34 +54,93 @@ export async function getMessages(conversationId: number): Promise<Array<Message
   }
 }
 
-export async function getResponse(question: string, conversationId: number): Promise<Message | undefined> {
+
+type GetResponseResult = {
+  type: 'result'
+  response: Message;
+  questionId: number;
+} | {
+    type: 'error',
+    reason: string
+};
+
+export async function getResponse(question: string, conversationId: number): Promise<GetResponseResult> {
+
+  const questionId = await postQuestion(question, conversationId);
+  if (!questionId) {
+    return {
+      type: 'error',
+      reason: 'Erreur à l\'envoie de la question'
+    };
+  }
+
   try {
+    
     const httpResponse = await fetch(
       `${import.meta.env.VITE_CHAT_SERVICE_URL}/conversations/${conversationId}/messages:complete`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ stream: false })
+      }
+    );
+    if (httpResponse.status !== StatusCodes.OK) {
+      return {
+        type: 'error',
+        reason: 'Erreur du serveur'
+      };
+    }
+
+    const body = await httpResponse.json();
+
+    return {
+      type: 'result',
+      response: {
+        id: body?.id,
+        role: 'assistant',
+        content: body?.choices?.[0]?.message.content,
+        createdAt: prettyFormatNow()
+      },
+      questionId: questionId
+    };
+
+  } catch (error) {
+    if (error instanceof Error) {
+      return {
+        type: 'error',
+        reason: error.message
+      };
+    } else {
+      return {
+        type: 'error',
+        reason: String(error)
+      };
+    }
+  }
+}
+
+async function postQuestion(question: string, conversationId: number): Promise<number | undefined> {
+  try {
+
+    const httpResponse = await fetch(
+      `${import.meta.env.VITE_CHAT_SERVICE_URL}/conversations/${conversationId}/messages`,
       {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json' 
         },
         body: JSON.stringify({
-          messages: [{ role: 'user', content: question }],
-          stream: false
+          role: 'user',
+          content: question
         })
       }
     );
-
-    if (httpResponse.status !== StatusCodes.OK) {
+    if (httpResponse.status !== StatusCodes.CREATED) {
       return;
     }
 
-    const body = await httpResponse.json();
-    console.log('responseId: ' + body?.id);
-    return {
-      id: body?.id,
-      role: 'assistant',
-      content: body?.choices?.[0]?.message.content,
-      createdAt: prettyFormatNow()
-    };
+    const bodyJson = await httpResponse.json();
+    return bodyJson.id;
 
   } catch (error) {
     return;

@@ -12,11 +12,15 @@
     if (userInput.length === 0) {
       return;
     }
-    messages.push({ id: 4, role: 'user', content: userInput, createdAt: prettyFormatNow() });
-    const response = await getResponse(userInput, 1);
-    console.log(response);
-    if (response) {
-      messages.push(response);
+    // On crée ajoute la question dans les message pour qu'elle s'affiche directement avant que le service de chat
+    // envoie la réponse. On mettra l'id à jour après la réponse du chat. Si il y a une erreur, la question sera 
+    // visible mais il faudrait rajouter un message d'erreur.
+    const questionMessage : Message = { id: -1, role: 'user', content: userInput, createdAt: prettyFormatNow() };
+    messages.push(questionMessage);
+    const result = await getResponse(userInput, 1);
+    if (result.type === 'result') {
+      questionMessage.id = result.questionId; // mise à jour de l'id qui était à -1
+      messages.push(result.response);
       userInput = '';
     }
   }
