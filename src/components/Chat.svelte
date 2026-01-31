@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte';
-  import { getMessages, type Message, getResponse } from '../services/chat.service';
+  import { getMessages, type Message, getResponseStream } from '../services/chat.service';
   import { prettyFormatNow } from '../utils/date';
   import MessageBubble from './MessageBubble.svelte';
   import { scrollToBottom } from '../services/scrolling';
@@ -27,21 +27,34 @@
     await tick();
     scrollToBottom(messageHistoryElement);
 
+    /*
     const result = await getResponse(userInput, 1);
     if (result.type === 'result') {
       questionMessage.id = result.questionId; // mise à jour de l'id qui était à -1
       messages.push(result.response);
       userInput = '';
-    }
-    
+    }*/
+
+    const responseStream = getResponseStream(userInput, 1);
+    const responseMessage : Message = { id: -1, role: 'assistant', content: '', createdAt: prettyFormatNow() };
+    messages.push(responseMessage);
+    userInput = '';
     await tick();
     scrollToBottom(messageHistoryElement);
+
+    for await (const chunk of responseStream) {
+      if (chunk.type !== 'message-chunk') {
+        break;
+      }
+      messages[messages.length-1].content += chunk.content;
+      if (messages[messages.length-1].id === -1) {
+        messages[messages.length-1].id = chunk.responseId;
+      }
+    }
   }
 
   onMount(async () => {
-    console.log('onMount()');
     messages = await getMessages(1);
-    console.log(messages);
   });
 </script>
 
