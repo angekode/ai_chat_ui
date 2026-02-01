@@ -1,67 +1,31 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte';
-  import { getMessages, type Message, getResponseStream } from '../services/chat.service';
-  import { prettyFormatNow } from '../utils/date';
   import MessageBubble from './MessageBubble.svelte';
-  import { scrollToBottom } from '../services/scrolling';
+  import { scrollIdToBottom } from '../services/scrolling';
+  import chatState from './Chat.svelte.js';
 
 
-  let messages : Message[] = $state([]);
   let userInput : string = $state('');
 
   async function formSubmitted(event: SubmitEvent) {
     event.preventDefault();
-    if (userInput.length === 0) {
-      return;
-    }
-    // On crée ajoute la question dans les message pour qu'elle s'affiche directement avant que le service de chat
-    // envoie la réponse. On mettra l'id à jour après la réponse du chat. Si il y a une erreur, la question sera 
-    // visible mais il faudrait rajouter un message d'erreur.
-    const questionMessage : Message = { id: -1, role: 'user', content: userInput, createdAt: prettyFormatNow() };
-    messages.push(questionMessage);
-
-    const messageHistoryElement = document.getElementById('messages-pane');
-    if (!messageHistoryElement) {
-      throw new Error('L\'élément #messages-pane n\'existe pas');
-    }
+    chatState.sendMessage(userInput, 1);
+    userInput = ''; // string est immutable donc on ne modifie pas la valeur que sendMessage qui est async lira après, car userInput est juste réassigné et pas muté
     await tick();
-    scrollToBottom(messageHistoryElement);
-
-    /*
-    const result = await getResponse(userInput, 1);
-    if (result.type === 'result') {
-      questionMessage.id = result.questionId; // mise à jour de l'id qui était à -1
-      messages.push(result.response);
-      userInput = '';
-    }*/
-
-    const responseStream = getResponseStream(userInput, 1);
-    const responseMessage : Message = { id: -1, role: 'assistant', content: '', createdAt: prettyFormatNow() };
-    messages.push(responseMessage);
-    userInput = '';
-    await tick();
-    scrollToBottom(messageHistoryElement);
-
-    for await (const chunk of responseStream) {
-      if (chunk.type !== 'message-chunk') {
-        break;
-      }
-      messages[messages.length-1].content += chunk.content;
-      if (messages[messages.length-1].id === -1) {
-        messages[messages.length-1].id = chunk.responseId;
-      }
-    }
+    scrollIdToBottom('messages-pane');
   }
 
   onMount(async () => {
-    messages = await getMessages(1);
+    await chatState.loadConversation(1);
+    await tick();
+    scrollIdToBottom('messages-pane');
   });
 </script>
 
 
 <div id="chat__component">
   <ul id="messages-pane">
-    {#each messages as message}
+    {#each chatState.messages as message}
       <li class={message.role === 'user' ? 'user-bubble' : 'assistant-bubble' }>
           <MessageBubble content={message.content} date={message.createdAt} role={message.role}></MessageBubble>
       </li>

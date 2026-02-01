@@ -10,3 +10,11 @@ export function scrollToBottom(element: HTMLElement) {
     // Pour scroll vers le bas il faut un offset de la hauteur total de l'élément (scrollHeight) mais sans la partie visible (clientHeight)
     element.scrollTop = element.scrollHeight - element.clientHeight;
 }
+
+export function scrollIdToBottom(elementId: string) {
+    const element = document.getElementById(elementId);
+    if (!element) {
+      throw new Error('L\'élément #messages-pane n\'existe pas');
+    }
+    scrollToBottom(element);
+}
