@@ -128,7 +128,7 @@ export async function getResponse(question: string, conversationId: number): Pro
 }
 
 
-type GetResponseResultStream = {
+type ResponseStream = {
   type: 'message-chunk',
   content: string,
   responseId: number
@@ -137,20 +137,28 @@ type GetResponseResultStream = {
   reason: string
 };
 
+type GetResponseStreamResult = {
+  type: 'result'
+  stream: AsyncGenerator<ResponseStream>;
+  questionId: number;
+} | {
+  type: 'error',
+  reason: string
+};
+
 /**
  * @param question - Chaine brute contenant la question à envoyer.
  * @param conversationId - Identifiant de la conversation donné par l'API du service de chat /users/:userId/conversations.
- * @returns un objet contenant la réponse ou une erreur.
+ * @returns un objet contenant le stream et autres informations, ou une erreur
  */
-export async function * getResponseStream(question: string, conversationId: number): AsyncGenerator<GetResponseResultStream> {
+export async function getResponseStream(question: string, conversationId: number): Promise<GetResponseStreamResult> {
 
   const questionId = await postQuestion(question, conversationId);
   if (!questionId) {
-    yield {
+    return {
       type: 'error',
       reason: 'Erreur à l\'envoie de la question'
     };
-    return;
   }
 
   try {
@@ -164,28 +172,27 @@ export async function * getResponseStream(question: string, conversationId: numb
       }
     );
     if (httpResponse.status !== StatusCodes.OK) {
-      yield {
+      return {
         type: 'error',
         reason: 'Erreur du serveur'
       };
-      return;
     }
 
     if (!httpResponse.body) {
       throw new Error('Stream de réponse à la question null');
     }
 
-    if (typeof (httpResponse.body as any)[Symbol.asyncIterator] !== 'function') {
-      console.error('gros probleme');
-    }
-
-    yield * streamWrapper(httpResponse.body);
+    return {
+      type: 'result',
+      stream: streamWrapper(httpResponse.body),
+      questionId: questionId
+    };
 
   } catch (error) {
     if (error instanceof Error) {
-      yield { type: 'error', reason: error.message };
+      return { type: 'error', reason: error.message };
     } else {
-      yield { type: 'error', reason: String(error) };
+      return { type: 'error', reason: String(error) };
     }
   }
 }
@@ -231,7 +238,7 @@ async function postQuestion(question: string, conversationId: number): Promise<n
  * Transforme le stream brut reçu de l'api sous la forme d'event SSE "data: {json}\n\n"
  * en stream de GetResponseResultStream.
  */
-async function * streamWrapper(fetchBodyStream: ReadableStream<Uint8Array>): AsyncGenerator<GetResponseResultStream> {
+async function * streamWrapper(fetchBodyStream: ReadableStream<Uint8Array>): AsyncGenerator<ResponseStream> {
 
   const textDecoder = new TextDecoder();
 

@@ -29,11 +29,22 @@ const chatState = $state({
 
 
   async sendMessage(question: string, conversationId: number): Promise<void> {
-    this.add(-1, 'user', question, prettyFormatNow());
-
+    // On stocke la question avec un id dummy
+    const questionMessage = this.add(-1, 'user', question, prettyFormatNow());
+    // On crée une réponse vide pour la mettre à jour pendant le stream
     const responseMessage = this.add(-1, 'assistant', '', prettyFormatNow());
+    // On récupère un stream pour la réponse
+    const result = await getResponseStream(question, conversationId);
+    if (result.type === 'error') {
+      console.error(result.reason);
+      return;
+    }
 
-    for await (const chunk of getResponseStream(question, conversationId)) {
+    // L'API génère un id pour la question,
+    // l'id de la réponse sera envoyé dans le stream
+    questionMessage.id = result.questionId;
+
+    for await (const chunk of result.stream) {
       if (chunk.type === 'error') {
         responseMessage.content += ` (erreur: ${chunk.reason})`;
         break;
