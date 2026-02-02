@@ -15,7 +15,7 @@ export function prettyFormatFromApi(apiDate: string): string {
 function prettyFormatFromNativeDate(date: Date): string {
     return twoDigitsString(date.getHours()) + ':' + 
     twoDigitsString(date.getMinutes()) + ' ' + 
-    twoDigitsString(date.getDay()) + '/' + 
+    twoDigitsString(date.getDay() + 1) + '/' + 
     twoDigitsString(date.getMonth() + 1) + '/' + 
     date.getFullYear().toString();
 }
