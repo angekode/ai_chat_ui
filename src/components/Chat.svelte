@@ -93,7 +93,28 @@
     list-style: none;
     gap: 1.5rem;
     overflow-y: scroll;
-    scrollbar-width: none;
+  }
+
+  ul#messages-pane::-webkit-scrollbar-track {
+    -webkit-box-shadow: inset 0 0 6px rgba(0,0,0,0.3);
+    border-radius: 10px;
+    background-color: var(--dark-background-color);
+  }
+
+  ul#messages-pane::-webkit-scrollbar {
+      width: 12px;
+      background-color: transparent;
+  }
+
+  ul#messages-pane::-webkit-scrollbar-thumb {
+      border-radius: 10px;
+      -webkit-box-shadow: inset 0 0 6px rgba(0,0,0,.3);
+      background-color: var(--user-bubble-background-color);
+      cursor: pointer;
+  }
+
+  ul#messages-pane::-webkit-scrollbar-thumb:hover {
+      background-color: var(--text-color);
   }
 
   li.user-bubble {
