@@ -1,10 +1,13 @@
 <script>
+  import Markdown from "svelte-exmarkdown";
   let { content, date, role } = $props();
 </script>
 
 
 <div class="message-bubble__container">
-  <p class={role === 'user' ? 'user-content' : 'assistant-content' }>{content}</p>
+  <p class={role === 'user' ? 'user-content' : 'assistant-content' }>
+    <Markdown md={content} />
+  </p>
   <aside class={role === 'user' ? 'user-date' : 'assistant-date' }>{date}</aside>
 </div>
 
