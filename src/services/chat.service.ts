@@ -2,6 +2,7 @@ import { StatusCodes } from 'http-status-codes';
 import zod, { json } from 'zod';
 import { prettyFormatFromApi, prettyFormatNow } from '../utils/date';
 
+
 export type Message = {
   role: 'assistant' | 'user' | 'system';
   content: string;
@@ -92,7 +93,7 @@ export async function getResponse(question: string, conversationId: number): Pro
         body: JSON.stringify({ stream: false })
       }
     );
-    if (httpResponse.status !== StatusCodes.OK) {
+    if (!httpResponse.ok) {
       return {
         type: 'error',
         reason: 'Erreur du serveur'
@@ -171,7 +172,7 @@ export async function getResponseStream(question: string, conversationId: number
         body: JSON.stringify({ stream: true })
       }
     );
-    if (httpResponse.status !== StatusCodes.OK) {
+    if (!httpResponse.ok) {
       return {
         type: 'error',
         reason: 'Erreur du serveur'
@@ -316,4 +317,145 @@ function extractJsonFromDataEvent(dataEvent: string):
       return { type: 'error', message: String(error) };
     }
   }
+}
+
+
+const apiUserArrayScheme = zod.array(
+  zod.object({
+    username: zod.string(),
+    id: zod.number()
+  })
+);
+
+
+/**
+ * Récupère les ids d'utilisateur et de conversation utiles pour tous les autres requêtes
+ * Renvoie undefined en cas d'échec
+ */
+export async function getUserAndConversationInfos(): Promise<{ userId: number, conversationId: number, conversationTitle: string } | undefined> {
+  try {
+
+    let userId = await getUserIdFromUsername(import.meta.env.VITE_CHAT_USERNAME);
+    if (userId === null) {
+      userId = await createUser(import.meta.env.VITE_CHAT_USERNAME,import.meta.env.VITE_CHAT_PASSWORD);
+    }
+    let conversationInfos = await getConversationInfoForUserId(userId);
+    if (conversationInfos === null) {
+      conversationInfos = await createConversationForUserId(userId);
+    }
+    return { userId: userId, conversationId: conversationInfos.id, conversationTitle: conversationInfos.title };
+
+  } catch (error) {
+    console.error(error);
+    return;
+  }
+}
+
+
+const apiConversationScheme = zod.object({
+  id: zod.number(),
+  title: zod.string(),
+  user_id: zod.number()
+});
+
+
+/**
+ * Crée une nouvelle conversation via l'API
+ * Renvoie les infos sur la conversation
+ * Lève une exception en cas d'échec
+ */
+async function createConversationForUserId(userId: number): Promise<{ title: string, id: number }> {
+  const httpResponse = await fetch(
+    `${import.meta.env.VITE_CHAT_SERVICE_URL}/conversations`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: 'Nouveau Titre', user_id: userId })
+    }
+  );
+  if (!httpResponse.ok) {
+    throw new Error(`Le serveur a répondu avec le code ${httpResponse.status}`);
+  }
+  const conversationInfos = apiConversationScheme.parse(await httpResponse.json());
+  return { title: conversationInfos.title, id: conversationInfos.id };
+}
+
+
+const apiConversationArrayScheme = zod.array(
+  zod.object({
+    id: zod.number(),
+    title: zod.string(),
+    user_id: zod.number()
+  })
+);
+
+
+/**
+ * Renvoie l'id et le titre de la 1ère conversation trouvée si elle existe via l'API
+ * Renvoie null si rien n'existe
+ */
+async function getConversationInfoForUserId(userId: number): Promise<{ title: string, id: number } | null> {
+
+  const httpResponse = await fetch(`${import.meta.env.VITE_CHAT_SERVICE_URL}/users/${userId}/conversations`);
+  if (!httpResponse.ok) {
+    throw new Error(`Le serveur a répondu avec le code ${httpResponse.status}`);
+  }
+
+  const conversationList = apiConversationArrayScheme.parse(await httpResponse.json());
+  if (conversationList.length === 0) {
+    return null;
+  }
+
+  return { title: conversationList[0].title, id: conversationList[0].id };
+}
+
+
+/**
+ * Si l'utilisateur existe déjà renvoie l'id existant
+ * Sinon renvoie null
+ * Lance une exception en cas d'erreur
+ */
+async function getUserIdFromUsername(username: string): Promise<number | null> {
+
+  const httpResponse = await fetch(`${import.meta.env.VITE_CHAT_SERVICE_URL}/users`);
+  if (!httpResponse.ok) {
+    throw new Error(`Le serveur a répondu avec le code ${httpResponse.status}`);
+  }
+  
+  const usersJson = await httpResponse.json();
+  const users = apiUserArrayScheme.parse(usersJson);
+  const user = users.find(user => user.username === import.meta.env.VITE_CHAT_USERNAME);
+  if (!user) {
+    return null;
+  }
+  return user.id;
+}
+
+
+const apiUserScheme = zod.object({
+  id: zod.number(),
+  username: zod.string()
+});
+
+
+/**
+ * Crée un nouvel utilisateur via l'API
+ * Renvoie l'id de l'utilisateur crée
+ * Envoie une exception en cas d'échec
+ */
+async function createUser(username: string, password: string): Promise<number> {
+  const httpResponse = await fetch(
+    `${import.meta.env.VITE_CHAT_SERVICE_URL}/users`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password }) 
+    }
+  );
+  if (httpResponse.status !== 201) {
+    throw new Error(`Le serveur a répondu avec le code ${httpResponse.status}`);
+  }
+
+  const userInfo = apiUserScheme.parse(await httpResponse.json());
+  return userInfo.id;
 }

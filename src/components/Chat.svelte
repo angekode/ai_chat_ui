@@ -9,14 +9,14 @@
 
   async function formSubmitted(event: SubmitEvent) {
     event.preventDefault();
-    chatState.sendMessage(userInput, 1);
+    chatState.sendMessage(userInput);
     userInput = ''; // string est immutable donc on ne modifie pas la valeur que sendMessage qui est async lira après, car userInput est juste réassigné et pas muté
     await tick();
     scrollIdToBottom('messages-pane');
   }
 
   onMount(async () => {
-    await chatState.loadConversation(1);
+    await chatState.loadConversation();
     await tick();
     scrollIdToBottom('messages-pane');
   });
